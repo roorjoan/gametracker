@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="es" data-theme="night">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Game CRUD Pro | Library</title>
+        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link
+            href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css"
+            rel="stylesheet"
+        />
+        <style>
+            .glass-card {
+                background: rgba(255, 255, 255, 0.03);
+                backdrop-filter: blur(12px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            .input-error {
+                border-color: oklch(var(--er)) !important;
+            }
+        </style>
+    </head>
+    <body class="bg-base-300 min-h-screen pb-10">
+        <div id="app" class="max-w-6xl mx-auto px-4">
+            <header
+                class="py-8 flex flex-col md:flex-row justify-between items-center gap-4"
+            >
+                <div>
+                    <h1
+                        class="text-4xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent italic"
+                    >
+                        🎮 GAME TRACKER
+                    </h1>
+                    <p class="text-sm opacity-60">
+                        Gestiona tu colección y puntuaciones
+                    </p>
+                </div>
+                <div class="stats shadow bg-base-100 border border-white/5">
+                    <div class="stat">
+                        <div class="stat-title text-accent">Nota Media</div>
+                        <div class="stat-value text-primary">{{ media }}</div>
+                        <div class="stat-desc opacity-50">
+                            {{ juegos.length }} juegos registrados
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="grid lg:grid-cols-4 gap-8">
+                <aside class="lg:col-span-1">
+                    <div
+                        class="card glass-card shadow-2xl sticky top-4 overflow-hidden"
+                    >
+                        <div
+                            class="h-1 w-full bg-primary"
+                            :class="{'bg-warning': editando}"
+                        ></div>
+                        <div class="card-body p-6">
+                            <h2
+                                class="card-title mb-2 flex items-center gap-2"
+                                :class="editando ? 'text-warning' : 'text-primary'"
+                            >
+                                <span
+                                    v-if="editando"
+                                    class="relative flex h-2 w-2"
+                                >
+                                    <span
+                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning opacity-75"
+                                    ></span>
+                                    <span
+                                        class="relative inline-flex rounded-full h-2 w-2 bg-warning"
+                                    ></span>
+                                </span>
+                                {{ editando ? 'Editar Juego' : 'Nuevo Juego' }}
+                            </h2>
+
+                            <div class="form-control gap-3">
+                                <div>
+                                    <input
+                                        v-model="f.Juego"
+                                        type="text"
+                                        placeholder="Título*"
+                                        :class="{'input-error': v && !f.Juego}"
+                                        class="input input-bordered w-full focus:input-primary transition-all"
+                                    />
+                                </div>
+
+                                <input
+                                    v-model="f.Género"
+                                    type="text"
+                                    placeholder="Género*"
+                                    :class="{'input-error': v && !f.Género}"
+                                    class="input input-bordered w-full focus:input-primary"
+                                />
+
+                                <input
+                                    v-model="f.Plataformas"
+                                    type="text"
+                                    placeholder="Plataforma*"
+                                    :class="{'input-error': v && !f.Plataformas}"
+                                    class="input input-bordered w-full focus:input-primary"
+                                />
+
+                                <div class="group">
+                                    <label class="label py-1"
+                                        ><span class="label-text-alt opacity-70"
+                                            >Fecha de Lanzamiento*</span
+                                        ></label
+                                    >
+                                    <input
+                                        v-model="f.Fecha"
+                                        type="date"
+                                        :class="{'input-error': v && !f.Fecha}"
+                                        class="input input-bordered w-full focus:input-primary"
+                                    />
+                                </div>
+
+                                <div class="group">
+                                    <label class="label py-1"
+                                        ><span class="label-text-alt opacity-70"
+                                            >Nota (0 - 10)*</span
+                                        ></label
+                                    >
+                                    <input
+                                        v-model.number="f.Nota"
+                                        type="number"
+                                        step="0.1"
+                                        placeholder="Ej: 9.5"
+                                        :class="{'input-error': v && (f.Nota === null || f.Nota < 0 || f.Nota > 10)}"
+                                        class="input input-bordered w-full focus:input-primary"
+                                    />
+                                </div>
+
+                                <div
+                                    v-if="v && !formularioValido"
+                                    class="alert alert-error text-xs p-2 py-1 rounded shadow-lg"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="stroke-current shrink-0 h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
+                                    </svg>
+                                    <span>Faltan campos obligatorios.</span>
+                                </div>
+
+                                <div class="flex gap-2 mt-4">
+                                    <button
+                                        @click="enviar"
+                                        class="btn btn-primary flex-1 shadow-lg shadow-primary/20"
+                                        :disabled="loading"
+                                    >
+                                        <span
+                                            v-if="loading"
+                                            class="loading loading-spinner loading-xs"
+                                        ></span>
+                                        {{ editando ? 'Actualizar' : 'Guardar'
+                                        }}
+                                    </button>
+                                    <button
+                                        v-if="editando"
+                                        @click="cancelarEdicion"
+                                        class="btn btn-square btn-outline btn-ghost border-white/10"
+                                        title="Cancelar"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-5 w-5"
+                                            viewBox="0 0 20 20"
+                                            fill="currentColor"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                                clip-rule="evenodd"
+                                            />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <main class="lg:col-span-3 space-y-6">
+                    <div class="relative">
+                        <span
+                            class="absolute inset-y-0 left-0 flex items-center pl-4 opacity-40"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                            </svg>
+                        </span>
+                        <input
+                            v-model="busqueda"
+                            type="text"
+                            placeholder="Buscar por nombre..."
+                            class="input input-bordered w-full pl-12 bg-base-100/50 shadow-inner"
+                        />
+                    </div>
+
+                    <div
+                        class="bg-base-100 rounded-2xl shadow-2xl overflow-hidden border border-white/5"
+                    >
+                        <table class="table table-zebra">
+                            <thead>
+                                <tr class="bg-base-200">
+                                    <th
+                                        class="py-4 px-6 text-sm tracking-wider uppercase opacity-70"
+                                    >
+                                        Juego
+                                    </th>
+                                    <th
+                                        class="text-sm tracking-wider uppercase opacity-70"
+                                    >
+                                        Nota
+                                    </th>
+                                    <th
+                                        class="text-right text-sm tracking-wider uppercase opacity-70"
+                                    >
+                                        Acciones
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5">
+                                <tr
+                                    v-for="j in juegosPaginados"
+                                    :key="j.rowId"
+                                    class="hover:bg-primary/5 transition-colors group"
+                                >
+                                    <td class="px-6">
+                                        <div class="flex items-center gap-4">
+                                            <div class="avatar placeholder">
+                                                <div
+                                                    class="bg-neutral text-neutral-content rounded-md w-12 h-12"
+                                                >
+                                                    <span
+                                                        class="text-xl font-bold"
+                                                        >{{ j.Juego.charAt(0)
+                                                        }}</span
+                                                    >
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div
+                                                    class="font-bold text-lg text-white group-hover:text-primary transition-colors"
+                                                >
+                                                    {{ j.Juego }}
+                                                </div>
+                                                <div class="flex gap-2 mt-1">
+                                                    <span
+                                                        class="badge badge-sm badge-outline opacity-60"
+                                                        >{{ j.Género }}</span
+                                                    >
+                                                    <span
+                                                        class="badge badge-sm badge-outline badge-secondary opacity-80 font-mono"
+                                                        >{{ j.Plataformas
+                                                        }}</span
+                                                    >
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div
+                                            class="radial-progress text-primary"
+                                            :style="`--value:${j['Nota Media'] * 10}; --size:2.8rem; --thickness: 4px;`"
+                                            role="progressbar"
+                                        >
+                                            <span class="text-xs font-black"
+                                                >{{ j['Nota Media'] }}</span
+                                            >
+                                        </div>
+                                    </td>
+                                    <td class="text-right">
+                                        <div class="join">
+                                            <button
+                                                @click="prepararEdicion(j)"
+                                                class="btn btn-ghost btn-sm join-item text-warning hover:bg-warning/20"
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    class="h-4 w-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                                    />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                @click="eliminar(j.rowId)"
+                                                class="btn btn-ghost btn-sm join-item text-error hover:bg-error/20"
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    class="h-4 w-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr v-if="juegosPaginados.length === 0">
+                                    <td colspan="3" class="text-center py-20">
+                                        <div class="opacity-20 text-6xl mb-4">
+                                            🛸
+                                        </div>
+                                        <p class="opacity-50 italic">
+                                            No se encontraron juegos que
+                                            coincidan.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div
+                        class="flex flex-col sm:flex-row justify-between items-center gap-4 px-2"
+                    >
+                        <div class="text-xs opacity-50 font-mono">
+                            PÁGINA {{ pagina }} DE {{ totalPaginas }}
+                        </div>
+                        <div class="join shadow-lg border border-white/10">
+                            <button
+                                @click="pagina--"
+                                :disabled="pagina === 1"
+                                class="join-item btn btn-sm px-6"
+                            >
+                                ANTERIOR
+                            </button>
+                            <button
+                                @click="pagina++"
+                                :disabled="pagina >= totalPaginas"
+                                class="join-item btn btn-sm px-6"
+                            >
+                                SIGUIENTE
+                            </button>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <script>
+            const { createApp, ref, onMounted, computed, watch } = Vue;
+            createApp({
+                setup() {
+                    const URL =
+                        `https://script.google.com/macros/s/AKfycbz9AwOEA7OiYjyKSkN3Stjg4Xi6PC5tY2k32gW8tgVB9viGYft8t6pF67OZzzA-2KC1/exec`.trim();
+                    const juegos = ref([]);
+                    const loading = ref(false);
+                    const editando = ref(false);
+                    const v = ref(false); // Flag de validación activada
+                    const busqueda = ref("");
+                    const pagina = ref(1);
+
+                    const f = ref({
+                        rowId: null,
+                        Juego: "",
+                        Género: "",
+                        Plataformas: "",
+                        Fecha: "",
+                        Nota: null,
+                    });
+
+                    // VALIDACIÓN LÓGICA
+                    const formularioValido = computed(() => {
+                        return (
+                            f.value.Juego.trim() !== "" &&
+                            f.value.Género.trim() !== "" &&
+                            f.value.Plataformas.trim() !== "" &&
+                            f.value.Fecha !== "" &&
+                            f.value.Nota !== null &&
+                            f.value.Nota >= 0 &&
+                            f.value.Nota <= 10
+                        );
+                    });
+
+                    const cargar = async () => {
+                        try {
+                            const r = await fetch(URL);
+                            juegos.value = await r.json();
+                        } catch (e) {
+                            console.error("Error de red", e);
+                        }
+                    };
+
+                    const enviar = async () => {
+                        v.value = true; // Activar feedback visual
+                        if (!formularioValido.value) return;
+
+                        loading.value = true;
+                        const payload = {
+                            ...f.value,
+                            action: editando.value ? "UPDATE" : "CREATE",
+                        };
+
+                        try {
+                            await fetch(URL, {
+                                method: "POST",
+                                mode: "no-cors",
+                                body: JSON.stringify(payload),
+                            });
+
+                            setTimeout(() => {
+                                cancelarEdicion();
+                                cargar();
+                                loading.value = false;
+                                v.value = false;
+                            }, 1200);
+                        } catch (e) {
+                            loading.value = false;
+                            alert("Error al conectar con el servidor");
+                        }
+                    };
+
+                    const eliminar = async (id) => {
+                        if (!confirm("¿Eliminar este juego definitivamente?"))
+                            return;
+                        await fetch(URL, {
+                            method: "POST",
+                            mode: "no-cors",
+                            body: JSON.stringify({
+                                action: "DELETE",
+                                rowId: id,
+                            }),
+                        });
+                        setTimeout(cargar, 1000);
+                    };
+
+                    const prepararEdicion = (j) => {
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                        editando.value = true;
+                        v.value = false;
+                        f.value = { ...j, Nota: Number(j["Nota Media"]) };
+                    };
+
+                    const cancelarEdicion = () => {
+                        editando.value = false;
+                        v.value = false;
+                        f.value = {
+                            rowId: null,
+                            Juego: "",
+                            Género: "",
+                            Plataformas: "",
+                            Fecha: "",
+                            Nota: null,
+                        };
+                    };
+
+                    const filtrados = computed(() =>
+                        juegos.value.filter((j) =>
+                            j.Juego.toLowerCase().includes(
+                                busqueda.value.toLowerCase(),
+                            ),
+                        ),
+                    );
+
+                    const totalPaginas = computed(
+                        () => Math.ceil(filtrados.value.length / 5) || 1,
+                    );
+                    const juegosPaginados = computed(() =>
+                        filtrados.value.slice(
+                            (pagina.value - 1) * 5,
+                            pagina.value * 5,
+                        ),
+                    );
+
+                    const media = computed(() => {
+                        if (!juegos.value.length) return "0.0";
+                        const total = juegos.value.reduce(
+                            (a, b) => a + Number(b["Nota Media"] || 0),
+                            0,
+                        );
+                        return (total / juegos.value.length).toFixed(1);
+                    });
+
+                    watch(busqueda, () => (pagina.value = 1));
+                    onMounted(cargar);
+
+                    return {
+                        juegos,
+                        f,
+                        loading,
+                        editando,
+                        v,
+                        busqueda,
+                        juegosPaginados,
+                        pagina,
+                        totalPaginas,
+                        media,
+                        enviar,
+                        eliminar,
+                        prepararEdicion,
+                        cancelarEdicion,
+                        formularioValido,
+                    };
+                },
+            }).mount("#app");
+        </script>
+    </body>
+</html>
